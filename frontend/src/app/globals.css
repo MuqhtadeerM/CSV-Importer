@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+}
+
+.sticky-thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* content-visibility is a cheap perf win for long table bodies: rows far
+   off-screen skip layout/paint work until they scroll into view. */
+tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 44px;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.4);
+  border-radius: 9999px;
+}

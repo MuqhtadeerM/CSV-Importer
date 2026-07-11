@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 
 export const CRM_FIELDS = [
   "created_at",
@@ -34,24 +34,30 @@ export const ALLOWED_DATA_SOURCE = [
 ];
 
 // Lazily construct the client so a missing API key fails with a clear,
-// controlled error at call time rather than crashing the whole process
-// on startup / import.
+// controlled error at call time rather than crashing the whole process.
 let _client = null;
 function getClient() {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
+    console.log("[DEBUG] getClient: GEMINI_API_KEY is missing from env");
     const err = new Error(
-      "AI provider is not configured. Set ANTHROPIC_API_KEY in the backend .env file.",
+      "AI provider is not configured. Set GEMINI_API_KEY in the backend .env file. " +
+        "Get a free key at https://aistudio.google.com/app/apikey",
     );
     err.status = 500;
     throw err;
   }
   if (!_client) {
-    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    console.log("[DEBUG] getClient: creating Gemini client (first call)");
+    _client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return _client;
 }
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+// gemini-3.5-flash is the current stable, free-tier eligible model (as of
+// mid-2026). Note: gemini-2.5-flash was reported failing early with 404s in
+// July 2026 ahead of its official Oct 2026 shutdown date, so we default to
+// the newer generation to avoid that instability.
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
 function buildSystemPrompt() {
   return `You are a meticulous data-mapping engine for a CRM called GrowEasy.
@@ -145,31 +151,48 @@ function safeJsonParse(text) {
 }
 
 /**
- * Calls Claude to map one batch of raw records to the CRM schema.
+ * Calls Gemini to map one batch of raw records to the CRM schema.
  * @param {{row_index: number, raw: Record<string,string>}[]} batch
  * @returns {Promise<Array>} raw parsed AI output (unvalidated — caller must
  *   sanitize; see utils/batchProcessor.js)
  */
 export async function extractBatchWithAI(batch) {
+  console.log(
+    `[DEBUG] extractBatchWithAI: sending batch of ${batch.length} rows to ${MODEL}`,
+  );
   const client = getClient();
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    temperature: 0,
-    system: buildSystemPrompt(),
-    messages: [{ role: "user", content: buildUserPrompt(batch) }],
-  });
+  let response;
+  try {
+    response = await client.models.generateContent({
+      model: MODEL,
+      contents: buildUserPrompt(batch),
+      config: {
+        systemInstruction: buildSystemPrompt(),
+        temperature: 0,
+        responseMimeType: "application/json",
+      },
+    });
+  } catch (err) {
+    // Surface Gemini's own error message (e.g. invalid key, quota exceeded)
+    // clearly, rather than a generic SDK stack trace.
+    console.log(
+      `[DEBUG] extractBatchWithAI: Gemini API call failed -> ${err.message}`,
+    );
+    throw new Error(`Gemini API error: ${err.message}`);
+  }
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock) {
+  const text = response.text;
+  if (!text) {
     throw new Error("AI response contained no text content.");
   }
 
   let parsed;
   try {
-    parsed = safeJsonParse(textBlock.text);
+    parsed = safeJsonParse(text);
   } catch (err) {
+    console.log("[DEBUG] extractBatchWithAI: JSON parse failed. Raw text was:");
+    console.log(text.slice(0, 500));
     throw new Error(`AI response was not valid JSON: ${err.message}`);
   }
 
@@ -177,5 +200,8 @@ export async function extractBatchWithAI(batch) {
     throw new Error("AI response was not a JSON array as required.");
   }
 
+  console.log(
+    `[DEBUG] extractBatchWithAI: parsed ${parsed.length} mapped records`,
+  );
   return parsed;
 }
