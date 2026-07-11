@@ -4,6 +4,20 @@ An AI-powered CSV import application that transforms lead data from different CS
 
 The application allows users to upload CSV files with arbitrary column names, preview the raw data, and use AI to intelligently map each row into the GrowEasy CRM lead structure.
 
+---
+
+## Live Deployment
+
+| Service  | URL                                                                          |
+| -------- | ----------------------------------------------------------------------------- |
+| Frontend (Vercel) | [https://csv-importer-zeta-lilac.vercel.app](https://csv-importer-zeta-lilac.vercel.app) |
+| Backend API (Render) | [https://csv-importer-8yth.onrender.com](https://csv-importer-8yth.onrender.com) |
+| Backend Health Check | [https://csv-importer-8yth.onrender.com/api/health](https://csv-importer-8yth.onrender.com/api/health) |
+
+> Note: the backend is hosted on Render's free tier, which spins down after periods of inactivity. The first request after idle time may take 30–60 seconds to respond while the service wakes up.
+
+---
+
 ## Features
 
 * Upload CSV files through a web interface
@@ -52,8 +66,8 @@ The application allows users to upload CSV files with arbitrary column names, pr
 
 ### Deployment
 
-* Frontend: Vercel
-* Backend: Render
+* Frontend: Vercel — https://csv-importer-zeta-lilac.vercel.app
+* Backend: Render — https://csv-importer-8yth.onrender.com
 
 ---
 
@@ -406,6 +420,12 @@ The backend runs locally at:
 http://localhost:8080
 ```
 
+The deployed backend runs at:
+
+```text
+https://csv-importer-8yth.onrender.com
+```
+
 ---
 
 # API Endpoints
@@ -422,6 +442,12 @@ Local URL:
 
 ```text
 http://localhost:8080/api/health
+```
+
+Deployed URL:
+
+```text
+https://csv-importer-8yth.onrender.com/api/health
 ```
 
 ### Example Response
@@ -447,6 +473,12 @@ Local URL:
 
 ```text
 http://localhost:8080/api/leads/preview
+```
+
+Deployed URL:
+
+```text
+https://csv-importer-8yth.onrender.com/api/leads/preview
 ```
 
 Request body:
@@ -504,6 +536,12 @@ Local URL:
 
 ```text
 http://localhost:8080/api/leads/import
+```
+
+Deployed URL:
+
+```text
+https://csv-importer-8yth.onrender.com/api/leads/import
 ```
 
 Request body:
@@ -568,6 +606,12 @@ Add:
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
+For pointing the local frontend at the deployed backend instead:
+
+```env
+NEXT_PUBLIC_API_URL=https://csv-importer-8yth.onrender.com
+```
+
 Do not place the Gemini API key in the frontend.
 
 The Gemini API key must remain private and should only exist in the backend environment.
@@ -584,6 +628,12 @@ The frontend runs at:
 
 ```text
 http://localhost:3000
+```
+
+The deployed frontend runs at:
+
+```text
+https://csv-importer-zeta-lilac.vercel.app
 ```
 
 ---
@@ -638,6 +688,23 @@ http://localhost:8080
 Google Gemini API
 ```
 
+Deployed architecture:
+
+```text
+Browser
+   │
+   ▼
+Next.js Frontend (Vercel)
+https://csv-importer-zeta-lilac.vercel.app
+   │
+   ▼
+Express Backend (Render)
+https://csv-importer-8yth.onrender.com
+   │
+   ▼
+Google Gemini API
+```
+
 ---
 
 # Testing with Postman
@@ -650,10 +717,16 @@ Method:
 POST
 ```
 
-URL:
+URL (local):
 
 ```text
 http://localhost:8080/api/leads/preview
+```
+
+URL (deployed):
+
+```text
+https://csv-importer-8yth.onrender.com/api/leads/preview
 ```
 
 Go to:
@@ -682,10 +755,16 @@ Method:
 POST
 ```
 
-URL:
+URL (local):
 
 ```text
 http://localhost:8080/api/leads/import
+```
+
+URL (deployed):
+
+```text
+https://csv-importer-8yth.onrender.com/api/leads/import
 ```
 
 Body:
@@ -720,7 +799,7 @@ The backend includes several safeguards.
 
 ## Helmet
 
-Helmet adds security-related HTTP headers.
+Helmet adds security-related HTTP headers, including an explicit `Cross-Origin-Resource-Policy: cross-origin` setting so the deployed frontend (Vercel) can read responses from the deployed backend (Render), since they are on different domains.
 
 ## CORS
 
@@ -735,7 +814,7 @@ http://localhost:3000
 For production:
 
 ```text
-https://your-frontend.vercel.app
+https://csv-importer-zeta-lilac.vercel.app
 ```
 
 ## Rate Limiting
@@ -838,6 +917,8 @@ Example error response:
 
 ## Backend Deployment on Render
 
+Deployed at: **https://csv-importer-8yth.onrender.com**
+
 Deploy the `backend` directory as a Node.js web service.
 
 Recommended configuration:
@@ -851,6 +932,7 @@ Start Command: npm start
 Add the required environment variables in the Render dashboard:
 
 ```env
+NODE_ENV=production
 GEMINI_API_KEY=your_production_api_key
 GEMINI_MODEL=your_supported_model
 
@@ -860,8 +942,10 @@ AI_BATCH_MAX_RETRIES=2
 
 MAX_CSV_ROWS=5000
 
-FRONTEND_URL=https://your-frontend.vercel.app
+FRONTEND_URL=https://csv-importer-zeta-lilac.vercel.app
 ```
+
+> Important: `FRONTEND_URL` must not have a trailing slash. `https://csv-importer-zeta-lilac.vercel.app` is correct; `https://csv-importer-zeta-lilac.vercel.app/` will cause CORS to silently fail, since browsers never send a trailing slash in the `Origin` header.
 
 Render provides the `PORT` environment variable automatically.
 
@@ -878,12 +962,14 @@ app.listen(PORT, "0.0.0.0", () => {
 After deployment, test:
 
 ```text
-https://your-backend.onrender.com/api/health
+https://csv-importer-8yth.onrender.com/api/health
 ```
 
 ---
 
 ## Frontend Deployment on Vercel
+
+Deployed at: **https://csv-importer-zeta-lilac.vercel.app**
 
 Import the GitHub repository into Vercel.
 
@@ -896,7 +982,7 @@ Root Directory: frontend
 Add:
 
 ```env
-NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+NEXT_PUBLIC_API_URL=https://csv-importer-8yth.onrender.com
 ```
 
 Then deploy.
@@ -906,7 +992,7 @@ After the Vercel deployment is complete, add the final Vercel URL to the backend
 Example:
 
 ```env
-FRONTEND_URL=https://your-project.vercel.app
+FRONTEND_URL=https://csv-importer-zeta-lilac.vercel.app
 ```
 
 Redeploy or restart the Render backend after changing environment variables.
@@ -920,12 +1006,12 @@ User
   │
   ▼
 Next.js Frontend
-Vercel
+Vercel — https://csv-importer-zeta-lilac.vercel.app
   │
   │ HTTPS API Requests
   ▼
 Node.js + Express Backend
-Render
+Render — https://csv-importer-8yth.onrender.com
   │
   │ AI Mapping Requests
   ▼
@@ -955,10 +1041,10 @@ http://localhost:3000
 For production:
 
 ```text
-https://your-project.vercel.app
+https://csv-importer-zeta-lilac.vercel.app
 ```
 
-After changing Render environment variables, redeploy or restart the backend.
+After changing Render environment variables, redeploy or restart the backend. Also double check `FRONTEND_URL` has no trailing slash.
 
 ---
 
@@ -1041,6 +1127,7 @@ The application can also process CSV files with different header names because t
 * The current implementation transforms and returns CRM-ready records.
 * Database persistence can be added as a future enhancement if required.
 * Never expose `GEMINI_API_KEY` through a `NEXT_PUBLIC_` environment variable.
+* The Render free tier spins down after inactivity; the first request after idle time may take 30–60 seconds.
 
 ---
 
