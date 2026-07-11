@@ -10,10 +10,16 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Allow local development + deployed Vercel frontend
+// Render (and most PaaS hosts) put the app behind a reverse proxy. Without
+// this, express-rate-limit sees Render's proxy IP for every request instead
+// of the real client IP.
+app.set("trust proxy", 1);
+
+// Allow local development + deployed Vercel frontend.
+// FRONTEND_URL is set in Render's environment settings — no need to
+// hardcode the Vercel URL here too (avoids drift if it ever changes).
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://csv-importer-zeta-lilac.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
@@ -21,7 +27,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     console.log("Incoming request origin:", origin);
 
-    // Allow Postman, curl, server-to-server requests
+    // Allow Postman, curl, server-to-server requests (no Origin header)
     if (!origin) {
       return callback(null, true);
     }
@@ -41,7 +47,16 @@ const corsOptions = {
 // IMPORTANT: CORS must be registered early
 app.use(cors(corsOptions));
 
-app.use(helmet());
+// helmet() defaults to Cross-Origin-Resource-Policy: same-origin, which
+// browsers enforce SEPARATELY from the Access-Control-Allow-Origin header
+// set by `cors` above. With frontend (Vercel) and backend (Render) on
+// different domains, that default silently blocks every response even
+// though `cors` approved it — this line is the actual fix for that.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 
 app.use(express.json({ limit: "1mb" }));
 
