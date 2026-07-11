@@ -15,6 +15,9 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
+console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
+console.log("Allowed CORS origins:", allowedOrigins);
+
 app.use(
   cors({
     origin: (origin, callback) => {
