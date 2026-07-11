@@ -10,10 +10,6 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// -------------------------
-// CORS configuration
-// -------------------------
-
 const allowedOrigins = [
   "http://localhost:3000",
   process.env.FRONTEND_URL,
@@ -21,9 +17,8 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow requests without an Origin header:
-      // Postman, curl, server-to-server requests, etc.
+    origin: (origin, callback) => {
+      // Allow Postman, curl, and server-to-server requests
       if (!origin) {
         return callback(null, true);
       }
@@ -32,24 +27,17 @@ app.use(
         return callback(null, true);
       }
 
-      const error = new Error(`CORS blocked request from origin: ${origin}`);
+      console.log("Blocked CORS origin:", origin);
+
+      const error = new Error(`CORS blocked origin: ${origin}`);
       error.status = 403;
       return callback(error);
     },
   }),
 );
 
-// -------------------------
-// Security middleware
-// -------------------------
-
 app.use(helmet());
-
 app.use(express.json({ limit: "1mb" }));
-
-// -------------------------
-// Rate limiting
-// -------------------------
 
 const importLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -63,10 +51,6 @@ const importLimiter = rateLimit({
 
 app.use("/api/leads/import", importLimiter);
 
-// -------------------------
-// Health check
-// -------------------------
-
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
@@ -74,23 +58,10 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// -------------------------
-// Application routes
-// -------------------------
-
 app.use("/api/leads", importRoutes);
-
-// -------------------------
-// Error handling
-// Must remain last
-// -------------------------
 
 app.use(notFoundHandler);
 app.use(errorHandler);
-
-// -------------------------
-// Start server
-// -------------------------
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on port ${PORT}`);
